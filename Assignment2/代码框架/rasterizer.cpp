@@ -42,8 +42,15 @@ auto to_vec4(const Eigen::Vector3f& v3, float w = 1.0f)
 
 static bool insideTriangle(int x, int y, const Vector3f* _v)
 {   
+    // pos代表当前当前像素点第几个采样点，从左到右从上到下依次为0~3
     // TODO : Implement this function to check if the point (x, y) is inside the triangle represented by _v[0], _v[1], _v[2]
     Eigen::Vector3f p(x, y, 1.0f);  // 构造待判断点p
+
+    // if (pos < 2) p[1] += 0.25;
+    // else p[1] -= 0.25;
+
+    // if (pos % 2) p[0] += 0.25;
+    // else p[0] -= 0.25;
     
     Eigen::Vector3f edge0_1 = _v[1] - _v[0];
     Eigen::Vector3f edge1_2 = _v[2] - _v[1];
@@ -134,15 +141,21 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     Vector3f _v[3] = {{v[0][0], v[0][1], 1}, {v[1][0], v[1][1], 1}, {v[2][0], v[2][1], 1}};  // 平面三角形
     for(int x = left; x <= right; ++x) {
         for(int y = down; y <= top; ++y) {
-            if (insideTriangle(x, y, _v)) {
-                auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
-                float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-                float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-                z_interpolated *= w_reciprocal;
+            // for (int i = 0; i < 4; ++i) { // 对四个采样点依次处理
+                // float lst[4]{0, 0, 0, 0};  // 维护深度列表
+                if (insideTriangle(x, y, _v)) {
+                    auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+                    float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                    float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                    z_interpolated *= w_reciprocal;
 
-                Vector3f p(x, y, 1.0f);
-                set_pixel(p, t.getColor());
-            }
+                    int index = y * width + x;  // 将 (x, y) 坐标转换为一维索引
+                    if (z_interpolated < depth_buf[index]) {
+                        depth_buf[index] = z_interpolated;  // 更新深度值
+                        set_pixel(Eigen::Vector3f(x, y, 1.0f), t.getColor());  // 设置像素颜色
+                    }
+                }
+            // }
         }
     }
 }
