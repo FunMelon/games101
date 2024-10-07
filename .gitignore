@@ -1,32 +1,14 @@
-# Prerequisites
-*.d
+# 忽略所有的 build 文件夹
+build/
+**/build/
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
 
-# Precompiled Headers
-*.gch
-*.pch
+# 忽略所有的 json 文件
+*.json
+*.DS_Store
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
+# 保留特定的文件类型
+!*.cpp
+!*.hpp
+!*.h
+!*.txt
