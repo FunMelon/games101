@@ -133,18 +133,18 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
 
 Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
 {
-    Eigen::Vector3f ka = Eigen::Vector3f(0.005, 0.005, 0.005);
-    Eigen::Vector3f kd = payload.color;
-    Eigen::Vector3f ks = Eigen::Vector3f(0.7937, 0.7937, 0.7937);
+    Eigen::Vector3f ka = Eigen::Vector3f(0.005, 0.005, 0.005);  // 环境光系数
+    Eigen::Vector3f kd = payload.color;  // 漫反射系数
+    Eigen::Vector3f ks = Eigen::Vector3f(0.7937, 0.7937, 0.7937);  // 高光项系数
 
-    auto l1 = light{{20, 20, 20}, {500, 500, 500}};
+    auto l1 = light{{20, 20, 20}, {500, 500, 500}};  // 光源
     auto l2 = light{{-20, 20, 0}, {500, 500, 500}};
 
     std::vector<light> lights = {l1, l2};
-    Eigen::Vector3f amb_light_intensity{10, 10, 10};
-    Eigen::Vector3f eye_pos{0, 0, 10};
+    Eigen::Vector3f amb_light_intensity{10, 10, 10};  // 环境光强度
+    Eigen::Vector3f eye_pos{0, 0, 10};  // 观察者位置
 
-    float p = 150;
+    float p = 150;  // 光照强度的衰减系数
 
     Eigen::Vector3f color = payload.color;
     Eigen::Vector3f point = payload.view_pos;
@@ -156,6 +156,22 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
         
+        // 光源方向
+        Eigen::Vector3f I = (light.position - point).normalized();
+        // 观察者方向
+        Eigen::Vector3f v = (eye_pos - point).normalized();
+        // 光源到点的距离平方
+        float r = (light.position - point).squaredNorm();
+        // 环境光
+        Eigen::Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
+        // 漫反射
+        Eigen::Vector3f diffuse = kd.cwiseProduct(light.intensity / r) * std::max(normal.dot(I), 0.0f);
+        // 半程向量
+        Eigen::Vector3f h = (v + I).normalized();
+        // 高光项
+        Eigen::Vector3f specular = ks.cwiseProduct(light.intensity / r) * std::pow(std::max(0.0f, normal.dot(h)), p);
+
+        result_color += ambient + diffuse + specular;
     }
 
     return result_color * 255.f;
