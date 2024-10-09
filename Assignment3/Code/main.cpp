@@ -268,14 +268,32 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)
 
     // TODO: Implement bump mapping here
     // Let n = normal = (x, y, z)
+    Eigen::Vector3f n = normal;
     // Vector t = (x*y/sqrt(x*x+z*z),sqrt(x*x+z*z),z*y/sqrt(x*x+z*z))
+    Eigen::Vector3f t; // 切线向量
+    t.x() = n.x() * n.y() / std::sqrt(n.x() * n.x() + n.z() * n.z());
+    t.y() = std::sqrt(n.x() * n.x() + n.z() * n.z());
+    t.z() = n.z() * n.y() / std::sqrt(n.x() * n.x() + n.z() * n.z());
+    t.normalize();
     // Vector b = n cross product t
+    Eigen::Vector3f b = n.cross(t);  // 副法线向量
+    b.normalize();
     // Matrix TBN = [t b n]
+    Eigen::Matrix3f TBN;  // 构造TBN矩阵
+    TBN << t, b, n;
     // dU = kh * kn * (h(u+1/w,v)-h(u,v))
     // dV = kh * kn * (h(u,v+1/h)-h(u,v))
-    // Vector ln = (-dU, -dV, 1)
-    // Normal n = normalize(TBN * ln)
+float dU = kh * kn * (payload.texture->getColor(payload.tex_coords[0] + 1.0f / payload.texture->width, payload.tex_coords[1])[0] 
+            - payload.texture->getColor(payload.tex_coords[0], payload.tex_coords[1])[0]);
 
+float dV = kh * kn * (payload.texture->getColor(payload.tex_coords[0], payload.tex_coords[1] + 1.0f / payload.texture->height)[0] 
+            - payload.texture->getColor(payload.tex_coords[0], payload.tex_coords[1])[0]);
+
+    // Vector ln = (-dU, -dV, 1)
+    Eigen::Vector3f ln = Eigen::Vector3f(-dU, -dV, 1);  // 法线扰动
+    ln.normalize();
+    // Normal n = normalize(TBN * ln)
+    normal = TBN * ln;  // 更新法线
 
     Eigen::Vector3f result_color = {0, 0, 0};
     result_color = normal;
