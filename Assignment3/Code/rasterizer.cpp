@@ -7,7 +7,6 @@
 #include <opencv2/opencv.hpp>
 #include <math.h>
 
-
 rst::pos_buf_id rst::rasterizer::load_positions(const std::vector<Eigen::Vector3f> &positions)
 {
     auto id = get_next_id();
@@ -256,6 +255,12 @@ static Eigen::Vector2f interpolate(float alpha, float beta, float gamma, const E
     return Eigen::Vector2f(u, v);
 }
 
+template<typename T>
+T interpolate(const std::array<T, 3>& values, float alpha, float beta, float gamma, const std::array<float, 3>& w, float Z)
+{
+    return (alpha * values[0] / w[0] + beta * values[1] / w[1] + gamma * values[2] / w[2]) * Z;
+}
+
 //Screen space rasterization
 void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos) 
 {
@@ -280,7 +285,37 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
     // Use: Instead of passing the triangle's color directly to the frame buffer, pass the color to the shaders first to get the final color;
     // Use: auto pixel_color = fragment_shader(payload);
 
- 
+    auto v = t.toVector4();
+    auto [min_x, max_x] = std::minmax({v[0][0], v[1][0], v[2][0]});
+    auto [min_y, max_y] = std::minmax({v[0][1], v[1][1], v[2][1]});
+
+    int left = ceil(min_x), right = floor(max_x), down = ceil(min_y), top = floor(max_y);
+    for(int x = left; x <= right; ++x) {
+        for(int y = down; y <= top; ++y) {
+            if (insideTriangle(x, y, v.data())) {
+                auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);  // 顶点的重心坐标
+
+                float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());  // 重心插值确定的像素深度
+                float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();  // 视图空间的深度值
+                zp *= Z;
+                Eigen::Vector3f interpolated_shadingcoords = (alpha * view_pos[0] / v[0].w() + beta * view_pos[1] / v[1].w() + gamma * view_pos[2] / v[2].w()) * Z;
+
+                int index = y * width + x;  // 将 (x, y) 坐标转换为一维索引
+                if (zp < depth_buf[index]) {
+                    depth_buf[index] = zp;  // 更新深度值
+                    Eigen::Vector3f interpolated_color =  (alpha * t.color[0] / v[0].w() + beta * t.color[1] / v[1].w() + gamma * t.color[2] / v[2].w()) * Z;  // 插值颜色
+                    Eigen::Vector3f interpolated_normal = (alpha * t.normal[0] / v[0].w() + beta * t.normal[1] / v[1].w() + gamma * t.normal[2] / v[2].w()) * Z;  // 插值法线
+                    interpolated_normal.normalize(); // 法线归一化
+                    Eigen::Vector2f interpolated_texcoords = alpha * t.tex_coords[0] + beta * t.tex_coords[1] + gamma * t.tex_coords[2];  //插值纹理坐标
+                    fragment_shader_payload payload(interpolated_color, interpolated_normal, interpolated_texcoords, t.tex ? t.tex : nullptr);
+                    payload.view_pos = interpolated_shadingcoords;  // 插值后的视图空间坐标
+                    auto pixel_color = fragment_shader(payload);     // 调用片段着色器，获得像素颜色
+
+                    set_pixel(Eigen::Vector2i(x, y), pixel_color);  // 设置像素颜色
+                }
+            }
+        }
+    }
 }
 
 void rst::rasterizer::set_model(const Eigen::Matrix4f& m)

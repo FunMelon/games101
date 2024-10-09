@@ -50,7 +50,20 @@ Eigen::Matrix4f get_model_matrix(float angle)
 Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio, float zNear, float zFar)
 {
     // TODO: Use the same projection matrix from the previous assignments
+    Eigen::Matrix4f projection = Eigen::Matrix4f::Zero(); // 初始化为零矩阵
+    
+    // 计算角度转弧度
+    float fov_rad = eye_fov / 2.0f * M_PI / 180.0f;
 
+    // 填充投影矩阵
+    projection(0, 0) = 1.0f / (tan(fov_rad) * aspect_ratio);
+    projection(1, 1) = 1.0f / tan(fov_rad);
+    projection(2, 2) = (zFar + zNear) / (zNear - zFar);
+    projection(2, 3) = (2 * zFar * zNear) / (zNear - zFar); // 注意符号
+    projection(3, 2) = -1.0f; // 确保z轴的方向是正确的
+    projection(3, 3) = 0.0f;
+
+    return projection;
 }
 
 Eigen::Vector3f vertex_shader(const vertex_shader_payload& payload)
