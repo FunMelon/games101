@@ -307,7 +307,7 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
                     Eigen::Vector3f interpolated_normal = (alpha * t.normal[0] / v[0].w() + beta * t.normal[1] / v[1].w() + gamma * t.normal[2] / v[2].w()) * Z;  // 插值法线
                     interpolated_normal.normalize(); // 法线归一化
                     Eigen::Vector2f interpolated_texcoords = alpha * t.tex_coords[0] + beta * t.tex_coords[1] + gamma * t.tex_coords[2];  //插值纹理坐标
-                    fragment_shader_payload payload(interpolated_color, interpolated_normal, interpolated_texcoords, t.tex ? t.tex : nullptr);
+                    fragment_shader_payload payload(interpolated_color, interpolated_normal, interpolated_texcoords, texture ? &*texture : nullptr);
                     payload.view_pos = interpolated_shadingcoords;  // 插值后的视图空间坐标
                     auto pixel_color = fragment_shader(payload);     // 调用片段着色器，获得像素颜色
 

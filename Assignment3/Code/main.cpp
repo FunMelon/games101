@@ -96,9 +96,10 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     Eigen::Vector3f return_color = {0, 0, 0};
     if (payload.texture)
     {
+        // std::cout << "有纹理";
         // TODO: Get the texture value at the texture coordinates of the current fragment
-
-    }
+        return_color = payload.texture->getColor(payload.tex_coords.x(), payload.tex_coords.y());
+    } 
     Eigen::Vector3f texture_color;
     texture_color << return_color.x(), return_color.y(), return_color.z();
 
@@ -125,7 +126,22 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
+        // 光源方向
+        Eigen::Vector3f I = (light.position - point).normalized();
+        // 观察者方向
+        Eigen::Vector3f v = (eye_pos - point).normalized();
+        // 光源到点的距离平方
+        float r = (light.position - point).squaredNorm();
+        // 环境光
+        Eigen::Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
+        // 漫反射
+        Eigen::Vector3f diffuse = kd.cwiseProduct(light.intensity / r) * std::max(normal.dot(I), 0.0f);
+        // 半程向量
+        Eigen::Vector3f h = (v + I).normalized();
+        // 高光项
+        Eigen::Vector3f specular = ks.cwiseProduct(light.intensity / r) * std::pow(std::max(0.0f, normal.dot(h)), p);
 
+        result_color += ambient + diffuse + specular;
     }
 
     return result_color * 255.f;
